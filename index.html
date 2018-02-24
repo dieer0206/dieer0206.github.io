@@ -331,26 +331,100 @@
       
         
           
-            <h2 id="Java自定义注解和运行时靠反射获取注解"><a href="#Java自定义注解和运行时靠反射获取注解" class="headerlink" title="Java自定义注解和运行时靠反射获取注解"></a>Java自定义注解和运行时靠反射获取注解</h2><ul>
-<li><strong>java自定义注解</strong></li>
-</ul>
+            <h2 id="Java自定义注解和运行时靠反射获取注解"><a href="#Java自定义注解和运行时靠反射获取注解" class="headerlink" title="Java自定义注解和运行时靠反射获取注解"></a>Java自定义注解和运行时靠反射获取注解</h2><blockquote>
+<p>这里记录一下学习注解和反射获取的一些心得，才开始学习些博客，写的不好，如果有啥错误请别见怪~</p>
+</blockquote>
+<p><strong><strong>java自定义注解</strong></strong></p>
 <blockquote>
 <p>Java注解是附加在代码中的一些元素，用于一些工具在编译、运行时进行解析和使用，起到说明、配置的功能。注解不会也不能影响代码的实际逻辑，仅仅起到辅助性的作用。包含在java.lang.annotation包中。</p>
 </blockquote>
 <p>1.元注解</p>
-<pre><code>元注解的意思是注解的注解。包括 @Retention（保留） @Target（目标）
+<pre><code>元注解可以理解成：注解的注解。包括 @Retention（保留） @Target（目标）
 @Document（文档） @Inherited（继承） 四种。
 </code></pre><p>1.1 @Retention：定义注解的保留策略</p>
-<ul>
-<li>@Retention（RetentionPolicy.Source）注解存在于源码中，在class文件中不会保留</li>
-<li><p>@Retention（RetentionPolicy.Class）注解会存在于class字节码文件中存在，但在运行时无法获取，默认的保留策略。<br>-@Retention（RetentionPolicy.Runtime）注解会存在于class字节码文件中存在，在运行时可以通过反射获取。</p>
-<p>注解类：</p>
-<pre><code>@Retention(RetentionPolicy.RUNTIME)//注解在class文件中，在运行时通过反射可以获得
-@Target（ElementType.FIELD,ElementType.METHOD）//定义注解的作用目标，作用范围字段，目标，方法。
-@Document //说明该注解将会被包含在javadoc中
-public @interface FieldMeta{}
-</code></pre></li>
-</ul>
+<pre><code> //注解存在于源码中，在class文件中不会保留
+- @Retention（RetentionPolicy.Source）
+ //注解会存在于class字节码文件中存在，但在运行时无法获取，默认的保留策略。
+- @Retention（RetentionPolicy.Class）
+ //注解会存在于class字节码文件中存在，在运行时可以通过反射获取。
+- @Retention（RetentionPolicy.Runtime）
+</code></pre><p>1.2 @Target：Annotation所修饰的对象范围，Annotation可被用于 packages、types（类、接口、枚举、Annotation类型）、类型成员（方法、构造方法、成员变量、枚举值）、方法参数和本地变量（如循环变量、catch参数）。取值（ElementType）有：</p>
+<pre><code>- CONSTRUCTOR (constructor)用于描述构造器 
+- FIELD  (field) 域
+- LOCAL_VARIABLE（local_variable） 局部变量
+- METHOD （method）方法
+- PACKAGE（package）  包
+- PARAMETER（parameter） 参数
+- TYPE （type） 类，接口（包括注解类型）和enum声明
+</code></pre><p>1.3 @Documented ：表明这个注解应该被 javadoc工具记录. 默认情况下,javadoc是不包括注解的，指定了该注解后，应该就会被javadoc之类工具处理（个人观点，具体不是很了解，感觉也不是很重要）</p>
+<p>1.4 @Inherited 它指明了被注解的类会自动继承，比如定义注解A的时候指定了Inherited注解，使用A注解来标注另一个父类B，父类B又有一个子类C，则父类B的所有属性都将被继承到子类C。</p>
+<blockquote>
+<p>####举例说明</p>
+</blockquote>
+<p> 定义注解类：</p>
+<pre><code>`     
+//注解在class文件中，在运行时通过反射可以获得
+@Retention(RetentionPolicy.RUNTIME)
+
+//定义注解的作用目标，作用范围字段，目标，方法。 
+@Target（ElementType.FIELD,ElementType.METHOD）
+
+//说明该注解将会被包含在javadoc中 
+@Document 
+public @interface FieldMeta{
+ /** 
+  * 字段名称 
+  * @return 
+  */  
+String name() default &quot;&quot;; 
+ /** 
+  * 字段描述 
+  * @return 
+  */  
+ String description() default &quot;&quot;;    
+ /** 
+  * 排序字段 
+  * @return 
+  */  
+ int order() default 0;  
+}`
+</code></pre><p>实体类：</p>
+<pre><code> `
+public class User{
+  @FieldMeta(name=&quot;loren&quot;,order=1) 
+  private int name;
+  @FieldMeta(description=&quot;Java注解反射&quot;，order=2) 
+  private String des;
+
+  public int getName(){
+   return name; 
+  }
+
+  public String getDes(){
+   return des; 
+  }
+
+}
+`
+</code></pre><p>测试类：</p>
+<pre><code>`public class TestMain{
+
+ public static void main(String[] args){
+   //这里只演示获取一个注解，也可以使用getDeclaredFields获取Field[]，进行巡回获取
+   Field field= User.class.getDeclaredField(&quot;name&quot;); 
+   //设置可以访问     
+   field.setAccessible(true);
+   //判断成员是否有注解
+   if (field.isAnnotationPresent(FieldMeta.class)) {
+    FieldMeta fm = field.getAnnotation(FieldMeta.class);
+    String name = fm.name; 
+    System.out.print(&quot;annotation get name is value: &quot;+name);
+   }
+
+  }   
+
+}`
+</code></pre><p>总结：JDK5.0开始引入了注解功能，运行用户自定义和使用注解。Annotation并不直接影响代码的语义，你可以把它看成是一个工具类库，它可以反过来对正在运行的程序语义有所影响，并且Annotation可以冲源文件、class文件或者在运行时通过反射机制多种方式被读取。写的不好，希望不要喷哈~~~</p>
 
           
         
